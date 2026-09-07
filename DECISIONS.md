@@ -120,14 +120,6 @@ The order of `CREATE TABLE` statements matters (foreign keys). AI didn't catch t
 - Fix: Reordered to products → carts → cart_items → coupons → orders → order_items → coupon_milestones
 - Learned: Can't rely on AI to think about dependency graphs — must test from scratch
 
-### What This Means
-
-- Every business-critical function was manually tested
-- Code I didn't understand was rejected or rewritten
-- Tests verify the implementation actually enforces the invariants (inventory never negative, coupon never double-spent)
-
-The AI tool was useful for **syntax and explanations**, but I was responsible for **validation and correctness**.
-
 ## What I Would Examine in the Next 2 Hours
 
 1. **Payment Integration** — Add a real payment processor abstraction (Stripe, PayPal). Currently we treat successful checkout as payment, but a production system needs payment confirmation before marking an order complete.
@@ -135,15 +127,5 @@ The AI tool was useful for **syntax and explanations**, but I was responsible fo
 2. **Customer Tracking** — Implement proper customer identification and order history lookup. Currently `customer_id` is optional; should be required with a user/authentication service.
 
 3. **Refund/Cancellation Logic** — Orders are immutable currently. Would add refund operations that safely restore inventory and record the transaction.
-
-4. **Coupon Expiration** — Milestone coupons never expire. Should add `expires_at` field and validate in checkout.
-
-5. **Analytics & Observability** — Add structured logging to track inventory changes, failed checkouts, and coupon redemptions. Would integrate with a logging service to catch issues in production.
-
-6. **Rate Limiting** — No protection against checkout spam or inventory enumeration attacks. Would add per-customer rate limiting on checkout endpoint.
-
-7. **Database Connection Pooling Improvements** — Current pool config is minimal. Would tune pool size, idle timeout, and connection limits based on production traffic patterns.
-
-8. **Test Coverage for Admin Endpoints** — Current tests focus on checkout; should add tests for coupon generation edge cases and report reconciliation under concurrent orders.
 
 The first two (payment integration and customer tracking) would provide the most value — they unlock a real multi-user system rather than just a prototype.
