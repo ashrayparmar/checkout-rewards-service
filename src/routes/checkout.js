@@ -94,9 +94,11 @@ router.post('/', async (req, res) => {
 
     // Handle coupon if provided
     let discountCents = 0;
+    let usedCouponId = null;
     if (coupon_id) {
+      // Look up coupon by code (coupon_id param is actually the code from the UI)
       const couponResult = await client.query(
-        'SELECT * FROM coupons WHERE id = $1',
+        'SELECT * FROM coupons WHERE code = $1 OR id = $1',
         [coupon_id]
       );
       if (couponResult.rows.length === 0) {
@@ -109,10 +111,12 @@ router.post('/', async (req, res) => {
         return res.status(400).json({ error: 'Coupon already redeemed' });
       }
 
+      usedCouponId = coupon.id;
+
       // Mark coupon as redeemed
       await client.query(
         `UPDATE coupons SET is_redeemed = true, redeemed_at = CURRENT_TIMESTAMP WHERE id = $1`,
-        [coupon_id]
+        [coupon.id]
       );
 
       // Calculate discount
@@ -130,7 +134,7 @@ router.post('/', async (req, res) => {
       `INSERT INTO orders (id, checkout_request_id, customer_id, subtotal_cents, discount_cents, total_cents, coupon_id)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-      [orderId, checkout_request_id, cartResult.rows[0].customer_id || null, subtotalCents, discountCents, totalCents, coupon_id || null]
+      [orderId, checkout_request_id, cartResult.rows[0].customer_id || null, subtotalCents, discountCents, totalCents, usedCouponId || null]
     );
 
     // Create order items

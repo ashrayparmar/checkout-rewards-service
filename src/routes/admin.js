@@ -7,6 +7,18 @@ const router = express.Router();
 const MILESTONE_INTERVAL = 5;
 const DISCOUNT_PERCENT = 10;
 
+// GET /admin/coupons/available - list all available (unredeemed) coupons
+router.get('/coupons/available', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT id, code, discount_percent FROM coupons WHERE is_redeemed = false ORDER BY generated_at DESC'
+    );
+    res.json(result.rows);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // POST /admin/coupons/generate - generate coupon for next unrewarded milestone
 router.post('/coupons/generate', async (req, res) => {
   const client = await pool.connect();
