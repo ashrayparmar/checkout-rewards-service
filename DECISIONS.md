@@ -67,3 +67,83 @@ A cart can only be checked out once. This prevents accidental double-charges and
 ## Why Cents Not Decimals
 
 All prices and amounts are stored as integers (cents) not decimals. This avoids floating-point rounding errors that plagued early payment systems. 100% safer for financial data.
+
+## System Invariants
+
+These invariants are protected by the transaction logic and schema constraints:
+
+1. **Inventory Never Negative** — `available_inventory` cannot go below zero. Enforced by row-level locking and validation before deduction.
+2. **Cart Checked Out Once** — A cart can only successfully checkout once. Enforced by `is_checked_out` flag and pre-check in transaction.
+3. **Coupon Redeemed Once** — Each coupon can only be marked `is_redeemed = true` once. Enforced by atomic update inside transaction and pre-check.
+4. **Duplicate Order Prevention** — The same `checkout_request_id` can only create one order. Enforced by UNIQUE constraint on `checkout_request_id`.
+5. **Order Revenue Reconciliation** — Sum of `order_items.quantity * unit_price_cents` always equals `orders.subtotal_cents` for that order. Enforced by calculating subtotal once in transaction and storing it atomically.
+
+## How AI Tools Affected This Solution
+
+I used Claude Code (AI assistant) for development throughout the project. My approach was to **test and validate every piece** rather than blindly accept generated code.
+
+### Development Process
+
+Instead of using "bypass permissions" mode (which would auto-run code without review), I used **manual validation mode** for each step:
+1. Claude generates code or explains a pattern
+2. I review it for correctness against requirements
+3. I implement it locally
+4. I test it manually with concrete scenarios
+5. Only after validation do I move to the next piece
+
+This ensured every line of code matched the business logic requirements.
+
+### Specific Corrections & Redirects
+
+**Rejected: SQLite for simplicity**
+- Claude initially suggested SQLite as "good enough for prototypes"
+- I realized concurrent inventory management requires row-level locking
+- I redirected to PostgreSQL with proper transaction isolation
+- Validated with concurrent checkout tests that verify inventory is protected
+
+**Rejected: Verbose error handling**
+- AI-generated error responses included excessive context ("The coupon you tried to use was invalid because...")
+- I replaced with actionable messages ("Coupon not found")
+- Kept only the information an API client actually needs
+
+**Accepted & Validated: Idempotency pattern**
+- Claude outlined the checkout_request_id + UNIQUE constraint pattern
+- I implemented pre-check query + constraint
+- Tested with retry scenario (same request_id called twice)
+- Verified same order returned on retry, no duplicate created
+
+### Database Schema Validation
+
+The order of `CREATE TABLE` statements matters (foreign keys). AI didn't catch this — I discovered it through testing:
+- Initial order: products → carts → cart_items → coupons → orders → order_items
+- Error: "relation coupons does not exist"
+- Fix: Reordered to products → carts → cart_items → coupons → orders → order_items → coupon_milestones
+- Learned: Can't rely on AI to think about dependency graphs — must test from scratch
+
+### What This Means
+
+- Every business-critical function was manually tested
+- Code I didn't understand was rejected or rewritten
+- Tests verify the implementation actually enforces the invariants (inventory never negative, coupon never double-spent)
+
+The AI tool was useful for **syntax and explanations**, but I was responsible for **validation and correctness**.
+
+## What I Would Examine in the Next 2 Hours
+
+1. **Payment Integration** — Add a real payment processor abstraction (Stripe, PayPal). Currently we treat successful checkout as payment, but a production system needs payment confirmation before marking an order complete.
+
+2. **Customer Tracking** — Implement proper customer identification and order history lookup. Currently `customer_id` is optional; should be required with a user/authentication service.
+
+3. **Refund/Cancellation Logic** — Orders are immutable currently. Would add refund operations that safely restore inventory and record the transaction.
+
+4. **Coupon Expiration** — Milestone coupons never expire. Should add `expires_at` field and validate in checkout.
+
+5. **Analytics & Observability** — Add structured logging to track inventory changes, failed checkouts, and coupon redemptions. Would integrate with a logging service to catch issues in production.
+
+6. **Rate Limiting** — No protection against checkout spam or inventory enumeration attacks. Would add per-customer rate limiting on checkout endpoint.
+
+7. **Database Connection Pooling Improvements** — Current pool config is minimal. Would tune pool size, idle timeout, and connection limits based on production traffic patterns.
+
+8. **Test Coverage for Admin Endpoints** — Current tests focus on checkout; should add tests for coupon generation edge cases and report reconciliation under concurrent orders.
+
+The first two (payment integration and customer tracking) would provide the most value — they unlock a real multi-user system rather than just a prototype.

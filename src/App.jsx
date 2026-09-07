@@ -177,26 +177,6 @@ export default function App() {
     }
   };
 
-  const generateCoupon = async () => {
-    try {
-      const res = await fetch(`${API_URL}/admin/coupons/generate`, {
-        method: 'POST'
-      });
-      const data = await res.json();
-
-      if (!res.ok) {
-        alert(`❌ ${data.error || 'Failed to generate coupon'}`);
-        return;
-      }
-
-      showAlert(`✅ Coupon generated: ${data.code}`, 'success');
-      loadReport();
-      await loadAvailableCoupons();
-    } catch (e) {
-      alert(`❌ Failed to generate coupon: ${e.message}`);
-    }
-  };
-
   const showAlert = (message, type) => {
     setAlert({ message, type });
     setTimeout(() => setAlert({ message: '', type: '' }), 4000);
@@ -467,13 +447,6 @@ export default function App() {
             <div style={{ marginBottom: '15px' }}>
               <button className="btn btn-primary" onClick={loadReport}>
                 Load Report
-              </button>
-              <button
-                className="btn btn-primary"
-                style={{ marginLeft: '10px' }}
-                onClick={generateCoupon}
-              >
-                Generate Coupon
               </button>
             </div>
 

@@ -58,7 +58,7 @@ Server running on http://localhost:3000
 ### 4. Start the Frontend (in a new terminal)
 
 ```bash
-npm run dev
+npm run dev:ui
 ```
 
 This starts the Vite development server on `http://localhost:5173`
@@ -91,14 +91,14 @@ Open your browser to `http://localhost:5173`
 1. Add 5x Monitor (only 3 available) to cart
 2. Try to checkout
 
-**Expected**: Alert popup saying "Insufficient inventory"
+**Expected**: API Failed saying "Insufficient inventory"
 
 ### Scenario 4: Double-Spend Prevention
 1. Checkout successfully with a coupon (e.g., MILESTONE_5)
 2. Create a new cart
 3. Try to checkout with the same coupon code
 
-**Expected**: Alert saying "Coupon already redeemed"
+**Expected**: API Failed saying "Coupon already redeemed"
 
 ### Scenario 5: Milestone Generation
 1. In the admin section (bottom of page), click "Load Report"
@@ -113,7 +113,7 @@ Open your browser to `http://localhost:5173`
 1. Checkout with a cart successfully
 2. Try to checkout again with the same cart ID
 
-**Expected**: Alert saying "Cart already checked out"
+**Expected**: API Failed saying "Cart already checked out"
 
 ### Scenario 7: Idempotency (Retry Safety)
 1. Open browser DevTools → Network tab
@@ -203,12 +203,33 @@ See [DECISIONS.md](DECISIONS.md) for:
 - Click "Load Available Coupons" first to see valid coupon codes
 - Use the exact coupon code from the dropdown
 
-**Alert not showing for errors**
-- Make sure browser didn't cache old code. Hard refresh: Cmd+Shift+R (Mac) or Ctrl+Shift+R (Windows)
+## Automated Tests
+
+Run the test suite to verify critical business logic:
+
+```bash
+# Terminal 1: Start the server (if not already running)
+npm start
+
+# Terminal 2: Run tests
+npm test
+```
+
+**Test Coverage:**
+
+1. **Idempotency** — Same `checkout_request_id` called twice returns same order, no duplicate inventory deduction
+2. **Concurrent Checkout** — Two users racing for limited inventory, one succeeds and one fails with 409 Conflict
+3. **Coupon Double-Spend** — Two concurrent checkouts cannot both redeem the same coupon
+4. **Error Handling** — Validates insufficient inventory, already checked out cart, invalid coupon
+
+Tests use `fetch()` to hit the live API endpoints, simulating real HTTP clients. They verify both happy paths and failure modes.
 
 ## Testing Notes
 
 - All scenarios have been manually tested and validated
+- Automated tests cover critical concurrent and retry scenarios
 - The system handles concurrent checkouts safely
 - Coupon double-spend is prevented at database level
 - Inventory cannot be oversold due to row-level locking
+
+**Time Spent:** ~5 hours (design, implementation, testing, documentation)
