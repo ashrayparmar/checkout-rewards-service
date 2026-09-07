@@ -1,6 +1,7 @@
 const productsRouter = require('./products');
 const cartsRouter = require('./carts');
 const checkoutRouter = require('./checkout');
+const adminRouter = require('./admin');
 
 function attachRoutes(app) {
   app.get('/health', (req, res) => {
@@ -10,6 +11,7 @@ function attachRoutes(app) {
   app.use('/products', productsRouter);
   app.use('/carts', cartsRouter);
   app.use('/checkout', checkoutRouter);
+  app.use('/admin', adminRouter);
 }
 
 module.exports = { attachRoutes };
